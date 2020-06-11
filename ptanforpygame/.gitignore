@@ -1,0 +1,10 @@
+.idea
+*.hdf5
+*.egg-info
+__pycache__
+*.pyc
+res*
+dist
+build
+.swp
+.ipynb_checkpoints

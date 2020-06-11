@@ -1,0 +1,14 @@
+*.pyc
+envs/envs/pytorch-rainbow/rainbow_lapan/runs/
+envs/envs/pytorch-rainbow/rainbow_lapan/results
+/.idea/
+*.dat
+runs/
+.vscode/*
+dist/*
+*.egg-info
+.idea/*
+*/build/*
+build/*
+*.ipynb
+*.egg
