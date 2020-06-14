@@ -77,7 +77,12 @@ class SimpleHighway(gym.Env):
         self.observation_space = spaces.Box(-high, high, dtype=np.float32)
         self.action_space = spaces.Discrete(self._dynamics._num_actions)
 
-            #: Starts the visual game environment.
+
+        self._vehicles = self.create_vehicles()
+        while not self._is_ego_blocked:
+            self.spawn_vehicles(self.np_random)
+        
+        #: Starts the visual game environment.
         if self._mode._is_rendering:
             self._display.env_init(self._reward_total)
 
