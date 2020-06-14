@@ -4,25 +4,7 @@ import math,pdb
 import copy
 import numpy as np
 
-"""
-# action space
-0 maintain 
-1 accelerate at a1 = 2.5m/s2
-2 decelarate at -a1 
-3 hard acc at a2 = 5m/s2
-4 hard dec at -a2
-5 change lane to left
-6 change lane to right 
-
-
-
-other agents 
-
-close. 0-30 
-nominal. 30-70
-far 70-..
-
-"""
+#from .Behavior.policy import Policy_Level_0 as tfasd
 
 
 
@@ -111,9 +93,19 @@ class Policy_Level_0(Policy):
         return action
 
 
+class Policy_Level_1(Policy_Level_0):
+    def __init__(self):
+        super().__init__()
+        pass
+
+class Policy_Level_2(Policy_Level_0):
+    def __init__(self):
+        super().__init__()
+        pass
+
 class vehicleAIController: 
     
-    def __init__(self, vehcl, vehicles, mode, dynamics): 
+    def __init__(self, vehcl, vehicles, mode, dynamics,level_k = 0): 
         
         self._vehcl = vehcl
         self._vehicles = vehicles
@@ -121,16 +113,20 @@ class vehicleAIController:
         self._dynamics = dynamics
         
         self._id = self._vehcl._id
-        self._policy = Policy_Level_0()
+        
+        if(level_k==0):
+            self._policy = Policy_Level_0()
+        elif level_k == 1:
+            self._policy = Policy_Level_1()
+        elif level_k == 2:
+            self._policy = Policy_Level_2()
+
         self.DEBUG_LANE_CHANGE = True
     
 
     def control(self, action):
-        
-        
         if(self._vehcl._is_ego == False):                
-            position = (self._vehcl._position[0],
-                                self._vehcl._position[1])
+            position = (self._vehcl._position[0],self._vehcl._position[1])
 
             front_vehcl = vehicleAIController.find_front_vehicle(self._vehicles,
                                                                 position)
@@ -150,17 +146,10 @@ class vehicleAIController:
             self._vehcl._acceleration = acc_to_be
         else:
             lane_change_to_be = action
-        # Checks if the traffic rule enables lane changing.
-        if self._mode._rule_mode !=0 or  self._vehcl._is_ego == True:
-            if self._vehcl._is_lane_changing is False and self._vehcl._is_ego is not True:
-                self._vehcl._lane_change_decision = lane_change_to_be
-                #print("id:{}, decision:{}".format(self._id, self._vehcl._lane_change_decision))
-                if self._vehcl._lane_change_decision!= 0:
-                    self._vehcl._is_lane_changing = True
-                    # mobil has a reverse left right order
-                    self._vehcl._target_lane = (self._vehcl._current_lane +
-                                                self._vehcl._lane_change_decision)
-            elif self._vehcl._is_lane_changing is False and self._vehcl._is_ego is True:
+        
+
+        if self._vehcl._is_ego == True:
+            if self._vehcl._is_lane_changing is False:
                 self._vehcl._lane_change_decision = lane_change_to_be
                 if self._vehcl._lane_change_decision != 0:
                     self._vehcl._is_lane_changing = True
