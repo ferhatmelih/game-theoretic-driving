@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Jun 27 10:26:13 2019
 
-@author: Baris ALHAN
-"""
 
 from enum import Enum
 

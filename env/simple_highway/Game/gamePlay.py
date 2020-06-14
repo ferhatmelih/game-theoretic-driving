@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Jun 27 12:02:26 2019
-
-@author: Baris ALHAN
-"""
 
 from Game.gameMode import gameMode
 from Game.gameDynamics import gameDynamics
@@ -21,9 +16,6 @@ from pygame.locals import *
 import pickle
 
 
-# TODO: add all vehicle related variables to the vehicle class.
-# TODO: add reset method.
-# TODO: make [x_pos, y_pos]
 class gamePlay:
     
     '''

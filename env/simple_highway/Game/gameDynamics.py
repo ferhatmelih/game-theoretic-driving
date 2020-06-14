@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Fri Jun 28 11:58:37 2019
-
-@author: Baris ALHAN
-"""
 
 
 class gameDynamics:
