@@ -50,10 +50,6 @@ class SimpleHighway(gym.Env):
     '''
 
     def __init__(self):
-        # pdb.set_trace()
-        '''
-            Initalizes all necessary modules to start the game.
-        '''
         # Seeding
         self.np_random = None
         
@@ -69,7 +65,6 @@ class SimpleHighway(gym.Env):
         self._reward_total = 0
         self._steps = 0
 
-        self._SaveLoad = [0, 0]
         # The below constructors are created with default parameters,
         # to read about the parameters of a class, go to the related class.
         self._mode = gameMode()
@@ -88,13 +83,6 @@ class SimpleHighway(gym.Env):
         # self.action_space = spaces.Discrete(self._dynamics._num_veh - 1)
         self.observation_space = spaces.Box(-high, high, dtype=np.float32)
         self.action_space = spaces.Discrete(self._dynamics._num_actions)
-
-        if self._SaveLoad[1] != True:
-            self._vehicles = self.create_vehicles()
-            while not self._is_ego_blocked:
-                self.spawn_vehicles(self.np_random)
-        else:
-            self.load()
 
             #: Starts the visual game environment.
         if self._mode._is_rendering:
@@ -174,9 +162,6 @@ class SimpleHighway(gym.Env):
                     # we are inhibiting the scenarios that egovehicle get high scores without a lane change
                     self._is_ego_blocked = False
                     #print("FREE")
-
-        if self._SaveLoad[0]:
-            self.save()
 
     def get_vehicle_with_id(self, vehcl_id):
         return self._vehicles[vehcl_id]
@@ -438,7 +423,6 @@ class SimpleHighway(gym.Env):
         self._dt = 0.05
         #self._steps = 0
         #self._reward = 0
-        # self._SaveLoad = SaveLoad
         # The below constructors are created with default parameters,
         # to read about the parameters of a class, go to the related class
         self._mode = gameMode()
