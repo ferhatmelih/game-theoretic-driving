@@ -42,13 +42,6 @@ MIN_VELOCITY = 10 #m/s
 
 class SimpleHighway(gym.Env):
 
-    metadata = {'render.modes': ['human']}
-    '''
-        Controls the flow of the game.
-        Velocity unit is m/s.
-        Time unit is second.
-    '''
-
     def __init__(self):
         # Seeding
         self.np_random = None
@@ -68,7 +61,7 @@ class SimpleHighway(gym.Env):
         # The below constructors are created with default parameters,
         # to read about the parameters of a class, go to the related class.
         self._mode = gameMode()
-        self._dynamics = gameDynamics()
+        self._dynamics = gameDynamics(num_actions=7)
         self._display = display(self)
 
         #: int: Id of the ego vehicle, it is always at the median index.
@@ -212,15 +205,6 @@ class SimpleHighway(gym.Env):
         pygame.quit()
         return False
         
-
-    def save(self):
-        with open("savegame.pkl", "wb") as outputFile:
-            pickle.dump(self._vehicles, outputFile, pickle.HIGHEST_PROTOCOL)
-
-    def load(self):
-        with open("savegame.pkl", "rb") as inputFile:
-            self._vehicles = pickle.load(inputFile)
-
     # PyGame related function.
     def wait_for_player_to_press_key(self):
         keys = pygame.key.get_pressed()
@@ -243,17 +227,6 @@ class SimpleHighway(gym.Env):
                     else:
                         return 1
 
-    def render(self, mode='human'):
-        return 0
-
-    # TODO: explain the general algorithm.
-    '''
-        1. Determine the longitudinal movement of each vehicle.
-            a. Calculate the acceleration in the x direction by using IDM.
-        2. Determine the lane change movement.
-            a. Find the surrounding vehicles.
-            b. Take the lane change decisions according to MOBIL.
-    '''
 
     def check_ego_accidents(self, ego_veh):
         collision = 0
@@ -268,8 +241,8 @@ class SimpleHighway(gym.Env):
                     if vehcl._current_lane == ego_veh._current_lane: #abs((vehcl._position[0] - ego_veh._position[0])) < 0.5
                         collision = 2
                         #print("***********SOFT-CRASH***********")
-
         return collision
+
     def calculate_current_lane(self, position, cur_lane):
         # lanes are numbered as 0: top, 1: middle, 2:bottom lane
         current_lane = cur_lane
@@ -281,6 +254,7 @@ class SimpleHighway(gym.Env):
             current_lane = 2
 
         return current_lane
+
     def calculate_reward(self, ego_veh, action):
         is_done = False
         out_of_bounds = 0
@@ -329,15 +303,14 @@ class SimpleHighway(gym.Env):
             self._reward = self._reward + speed_rew + accel_rew
         return is_done
 
+
+    def gym_to_lanechange_action(self,action):
+        action = action - 1
+        return action
+
     def step(self, action):
-        # TODO action mumbers refers to what for the game and gym?
-        self.num_steps_taken+=1
-        if self._gym == 1:
-            action = action - 1
-        self._reward = 0
         
-
-
+        action = self.gym_to_lanechange_action(action)
 
         # find fron vehicles then calculate delta x, v ,a
         for vehcl in self._vehicles:
@@ -408,23 +381,13 @@ class SimpleHighway(gym.Env):
         return observation, self._reward, is_done, summary
 
     def reset(self):
-        # Seeding
-        #self.np_random = None
-        #self.seed(10)
-        # reset ego blocked status
         self._is_ego_blocked = 0
-
-
         
-        #: int: Time of the simulation (s)
         self._time = 0
         self._reward_total = 0
         #: float: Analog of the real time required to do just one step (s)
         self._dt = 0.05
-        #self._steps = 0
-        #self._reward = 0
-        # The below constructors are created with default parameters,
-        # to read about the parameters of a class, go to the related class
+        
         self._mode = gameMode()
         self._dynamics = gameDynamics()
         self._display = display(self)
@@ -435,20 +398,16 @@ class SimpleHighway(gym.Env):
         #: list of vehicle: Stores vehicle objects
         self._vehicles = None
 
-        # gym action / state  / observations
-        high = 10 * np.ones((self._dynamics._num_veh * 3 - 1, 1))
-        self.action_space = spaces.Discrete(self._dynamics._num_veh - 1)
-        self.observation_space = spaces.Box(-high, high, dtype=np.float32)
-        self.action_space = spaces.Discrete(self._dynamics._num_actions)
-
-
         self._vehicles = self.create_vehicles()
         while not self._is_ego_blocked:
             self.spawn_vehicles(self.np_random)
+        
         #: Starts the visual game environment.
         if self._mode._is_rendering:
             self._display.env_init(self._reward_total)
+        
         obs, _, _, _ = self.step(1)
         self.is_init_state_saved = False
         self.num_steps_taken = 0
+        
         return obs
