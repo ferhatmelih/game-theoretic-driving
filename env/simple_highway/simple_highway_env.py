@@ -5,19 +5,19 @@ from gym import error, spaces, utils
 from gym.utils import seeding
 import os
 
-file_dir = os.path.dirname(os.path.abspath(__file__))
-os.chdir(file_dir)
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 # gameMode class contains ruleMode, Rendering, total game distance
-from Game.gameMode import gameMode
+from .Game.gameMode import gameMode
 # gameDynamics class contains number of lanes, number of vehicles
-from Game.gameDynamics import gameDynamics
+from .Game.gameDynamics import gameDynamics
 # vehicle class represents each vehicle in terms of position, velocity, lane change decision, controller
-from Vehicle.vehicle import vehicle
+from .Vehicle.vehicle import vehicle
 # display class contains the pygame rendering setup such as plotting velocity / id of vehicles / their pictures etc
-from Display.display import display
+from .Display.display import display
 # AI controller class contains MOBIL / IDM
-from Vehicle.vehicleAIController import vehicleAIController as AIController
+from .Vehicle.vehicleAIController import vehicleAIController as AIController
+
 import numpy as np
 import pygame, pdb
 from pygame.locals import *
@@ -25,17 +25,6 @@ import pickle
 import time
 
 import datetime
-
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-
-import torch.optim as optim
-
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-SAVED_ESTIMATORS_FOLDER = "modelstobetested/"
 
 """
 # action space
@@ -51,7 +40,7 @@ SAVED_ESTIMATORS_FOLDER = "modelstobetested/"
 MAX_VELOCITY = 40 #m/s
 MIN_VELOCITY = 10 #m/s
 
-class gamePlay2(gym.Env):
+class SimpleHighway(gym.Env):
 
     metadata = {'render.modes': ['human']}
     '''

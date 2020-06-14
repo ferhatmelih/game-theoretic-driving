@@ -21,9 +21,9 @@ HYPERPARAMS = {
         'batch_size':       32
     },
     'gamePlay2': {
-        'env_name': "gamePlay2-v0",
+        'env_name': "SimpleHighway-v1",
         'stop_reward': 10000,
-        'run_name': 'gamePlay2',
+        'run_name': 'SimpleHighway',
         'replay_size':      50000,
         'replay_initial':   1000,
         'target_net_sync':  500,

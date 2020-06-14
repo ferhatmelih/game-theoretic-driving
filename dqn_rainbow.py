@@ -18,25 +18,18 @@ import glob
 import matplotlib.pyplot as plt
 now = datetime.datetime.now()
 
-EVAL_ESTIMATOR = False ## this should be False to start training estimator.
-
-MODEL_PATH_FINAL = "Rainbow30.dat"
-SAVED_ESTIMATORS_FOLDER = "modelstobetested/"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-######### FAIL ESTIM PARAMS ##############
-ESTIMATOR_LR = 0.01
-ESTIMATOR_BATCH = 8
-ESTIMATOR_FEATURE_SIZE = 4
-SAVE_MODELS_EACH = 300
+from gym.envs.registration import register
 
-TEST_FAIL_DETECTOR_EACH = 16
+register(
+    id='SimpleHighway-v1',
+    entry_point='env.simple_highway.simple_highway_env:SimpleHighway',
+)
 
 
-DELTA_TIME_FEATURE_VECTOR = 1.0
 
 #=======================================================
-
 EVAL_RUNS = 200
 
 # n-step
@@ -70,15 +63,6 @@ class RainbowDQN(nn.Module):
     def __init__(self, input_shape, n_actions):
         super(RainbowDQN, self).__init__()
 
-        # self.conv = nn.Sequential(
-        #     nn.Conv2d(input_shape[0], 32, kernel_size=8, stride=4),
-        #     nn.ReLU(),
-        #     nn.Conv2d(32, 64, kernel_size=4, stride=2),
-        #     nn.ReLU(),
-        #     nn.Conv2d(64, 64, kernel_size=3, stride=1),
-        #     nn.ReLU()
-        # )
-
         #conv_out_size = self._get_conv_out(input_shape)
         self.fc_val = nn.Sequential(
             dqn_model.NoisyLinear(input_shape[0], 256),
@@ -98,15 +82,6 @@ class RainbowDQN(nn.Module):
     def _get_conv_out(self, shape):
         o = self.conv(torch.zeros(1, *shape))
         return int(np.prod(o.size()))
-
-    # def forward(self, x):
-    #     batch_size = x.size()[0]
-    #     fx = x.float() / 256
-    #     conv_out = self.conv(fx).view(batch_size, -1)
-    #     val_out = self.fc_val(conv_out).view(batch_size, 1, N_ATOMS)
-    #     adv_out = self.fc_adv(conv_out).view(batch_size, -1, N_ATOMS)
-    #     adv_mean = adv_out.mean(dim=1, keepdim=True)
-    #     return val_out + (adv_out - adv_mean)
 
     def forward(self, x):
         #fx = x.float() / 256
@@ -159,31 +134,28 @@ if __name__ == "__main__":
     optimizer = optim.Adam(net.parameters(), lr=params['learning_rate'])
 
 
-    if(EVAL_ESTIMATOR):
-        pass
-        #eval_saved_models(exp_source,estimator_linear=estimator_linear)
-    else:
-        frame_idx = 0
-        beta = BETA_START
-        best_mean_reward = 0.0
-        eval_states = None
-        finished_run_counter = -1
-        batch_counter = 0
-        prev_accident_num = 0
-        with common.RewardTracker(writer, params['stop_reward']) as reward_tracker:
-            while frame_idx < total_steps:
-                frame_idx += 1
-                buffer.populate(1)
-                beta = min(1.0, BETA_START + frame_idx * (1.0 - BETA_START) / BETA_FRAMES)
-                new_rewards = exp_source.pop_total_rewards()
-                if new_rewards:
-                    # start saving the model after actual training begins
-                    finished_run_counter+=1
-                    total_accidents = exp_source.total_accidents
-                    last_iteration_accident_num = total_accidents - prev_accident_num
-                    if(last_iteration_accident_num>0):
-                        pass
-                        #print("accident occured frame: ",frame_idx)
+
+    frame_idx = 0
+    beta = BETA_START
+    best_mean_reward = 0.0
+    eval_states = None
+    finished_run_counter = -1
+    batch_counter = 0
+    prev_accident_num = 0
+    with common.RewardTracker(writer, params['stop_reward']) as reward_tracker:
+        while frame_idx < total_steps:
+            frame_idx += 1
+            buffer.populate(1)
+            beta = min(1.0, BETA_START + frame_idx * (1.0 - BETA_START) / BETA_FRAMES)
+            new_rewards = exp_source.pop_total_rewards()
+            if new_rewards:
+                # start saving the model after actual training begins
+                finished_run_counter+=1
+                total_accidents = exp_source.total_accidents
+                last_iteration_accident_num = total_accidents - prev_accident_num
+                if(last_iteration_accident_num>0):
+                    pass
+                    #print("accident occured frame: ",frame_idx)
 
 
 

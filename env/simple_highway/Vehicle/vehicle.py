@@ -1,16 +1,11 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Jul 24 17:17:45 2019
-
-@author: Baris ALHAN
-"""
 import math,pdb
 import numpy as np
 
 
-from Vehicle.vehicleControlModels import PID
-from Vehicle.vehicleControlModels import dynModel as DynModel
-from Vehicle.vehicleAIController import vehicleAIController as AIController
+from .vehicleControlModels import PID
+from .vehicleControlModels import dynModel as DynModel
+from .vehicleAIController import vehicleAIController as AIController
 
 class vehicle():
  
