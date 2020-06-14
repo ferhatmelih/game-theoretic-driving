@@ -124,61 +124,10 @@ class vehicleAIController:
         self._policy = Policy_Level_0()
         self.DEBUG_LANE_CHANGE = True
     
-    
-    # TODO: check is there any calculation made in the step related to the deltas.
-    def calculate_acceleration(vehcl_v,
-                               vehcl_pos,
-                               vehcl_desired_v,
-                               front_vehcl_v,
-                               front_vehcl_pos):
-        
-        new_delta_v = vehcl_v - front_vehcl_v
-        new_delta_dist = front_vehcl_pos[1] - vehcl_pos[1]
-            
-        new_acceleration = vehicleAIController.IDM(vehcl_v,
-                                                   vehcl_desired_v,
-                                                   new_delta_v,
-                                                   new_delta_dist)
-        return new_acceleration   
-    
-    
-    '''
-        One of the main functions for traffic simulation.
-        It controls the longitudinal accelerations of vehicles.
-        For reference, please check the paper itself.
-        
-        Inputs:
-            velocity   : current speed of the vehicle
-            desired_v   : desired speed of the vehicle
-            delta_v     : Speed diffrence with the leading vehicle
-            delta_dist  : Gap with the leading vehicle
-        Outputs: 
-            acceleration : Reference Acceleration
-    '''
-    @staticmethod
-    def IDM(velocity,
-            desired_v,
-            delta_v,
-            delta_dist):
-        
-        amax = 0.7  # Maximum acceleration    (m/s^2) 
-        S = 4  # Acceleration exponent
-        d0 = 2  # Minimum gap
-        T = 1.6  # Safe time headaway    (s)
-        b = 1.7  # Desired deceleration (m/s^2)
-        
-        dstar = d0 + (velocity * T) + ((velocity * delta_v) / (2 * math.sqrt(amax * b)))
-        acceleration = amax * (1 - math.pow( ( velocity/desired_v ), S) - math.pow( (dstar/(delta_dist + 0.001)) , 2) )
-    
-        # Lower bound for acceleration, -20 m/s^2
-        if acceleration < -5:
-            acceleration = -5
-        
-        return acceleration
-    
 
     def control(self, action):
-
+        
+        
         if(self._vehcl._is_ego == False):                
             position = (self._vehcl._position[0],
                                 self._vehcl._position[1])
