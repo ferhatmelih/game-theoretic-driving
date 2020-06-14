@@ -42,7 +42,13 @@ MIN_VELOCITY = 10 #m/s
 
 class SimpleHighway(gym.Env):
 
-    def __init__(self):
+    def __init__(self,agent_level_k=0):
+        
+        #>> Behavior additions
+
+        self.agent_level_k = agent_level_k
+        
+        
         # Seeding
         self.np_random = None
         
@@ -57,7 +63,6 @@ class SimpleHighway(gym.Env):
         self._reward = 0
         self._reward_total = 0
         self._steps = 0
-
         # The below constructors are created with default parameters,
         # to read about the parameters of a class, go to the related class.
         self._mode = gameMode()
@@ -96,7 +101,7 @@ class SimpleHighway(gym.Env):
         self.num_steps_taken = 0
         self.last_game_state = []
         self._did_accident_just_occur = False
-        self.DEBUG_LIMITS = True
+        self.DEBUG_LIMITS = False
 
 
     def seed(self, seed=None):
@@ -150,7 +155,8 @@ class SimpleHighway(gym.Env):
             vehcl._AIController = AIController(vehcl,
                                                self._vehicles,
                                                self._mode,
-                                               self._dynamics)
+                                               self._dynamics,
+                                               level_k=self.agent_level_k)
             if vehcl._is_ego == True:
                 if vehcl._AIController.find_front_vehicle(self._vehicles, vehcl._position):
                     self._is_ego_blocked = True
