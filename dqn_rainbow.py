@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import gym
-from ptanforpygame import ptan
-#import ptan
+#from ptanforpygame import ptan
+import ptan
 import argparse
 import numpy as np
 
@@ -57,7 +57,7 @@ def dqn_cfg():
     MODEL_PATH_FINAL = "best_"+str(agent_level_k)
     SAVE_NAME = "level" + str(agent_level_k)
     RENDER = False
-    LEVEL_1_AGENT_PATH = "savedmodels/best_level_1.dat"
+    level_1_agent_path = "savedmodels/best_level_1.dat"
     
     w1 = 0.6
     w2 = 0.3
@@ -236,3 +236,5 @@ def main(_config,_run):
             if logger:
                 loss_v.item()
                 logger.log_scalar("loss", loss_v.item())
+                logger.log_scalar("mean_reward", reward_tracker.mean_reward)
+                

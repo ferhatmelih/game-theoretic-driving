@@ -9,7 +9,8 @@ from .policy import Policy_Level_0, Policy_Level_1,Policy_Level_2
 
 class vehicleAIController: 
     
-    def __init__(self, vehcl, vehicles, mode, dynamics,level_k = 0): 
+    def __init__(self, vehcl, vehicles, mode, dynamics,level_k = 0,
+        level_1_agent_path=None): 
         
         self._vehcl = vehcl
         self._vehicles = vehicles
@@ -20,14 +21,20 @@ class vehicleAIController:
         
         self.level_k = level_k
 
+        self.level_1_agent_path = level_1_agent_path 
+
         if level_k==0 :
             self._policy = Policy_Level_0()
         elif level_k == 1:
-            self._policy = Policy_Level_1()
+            if level_1_agent_path:
+                self._policy = Policy_Level_1(level_1_agent_path)
+            else:
+                self._policy = Policy_Level_1()
+            
         elif level_k == 2:
             self._policy = Policy_Level_2()
 
-        self.DEBUG_LANE_CHANGE = True
+        self.DEBUG_LANE_CHANGE = False
     
 
     def make_observation_level_0(self,lane_pos_list,pos_vehicle_map):    
@@ -80,40 +87,36 @@ class vehicleAIController:
 
 
 
-    
+    def decide_on_action(self,lane_pos_list,pos_vehicle_map):
+        action = 0
+        if self._vehcl._is_lane_changing is False:
+            # make observation
+            if self.level_k == 0:
+                observation = self.make_observation_level_0(lane_pos_list,pos_vehicle_map)
+            else:
+                observation = self.make_observation_level_k(lane_pos_list,pos_vehicle_map)
+            
+            action = self._policy.get_action(observation)
+        
+        return action
 
-    def control(self, action,lane_pos_list,pos_vehicle_map):
-        # agents just perfrom their action 
-        if(self._vehcl._is_ego == False):
-            if self._vehcl._is_lane_changing is False:
-                # make observation
-                if self.level_k == 0:
-                    observation = self.make_observation_level_0(lane_pos_list,pos_vehicle_map)
-                else:
-                    observation = self.make_observation_level_k(lane_pos_list,pos_vehicle_map)
-                
-                action = self._policy.get_action(observation)
-                
-                self.apply_agent_action(action)
+    def control(self, action):
+        if self._vehcl._is_lane_changing is False:            
+            
+            acc_to_be = self._policy.action_to_acc_map(action)
 
-        elif self._vehcl._is_ego == True:
-            ## for ego, action is already given by the network. just apply it. 
-            if self._vehcl._is_lane_changing is False:
-                
-                acc_to_be = self._policy.action_to_acc_map(action)
+            self._vehcl._acceleration = acc_to_be
 
-                self._vehcl._acceleration = acc_to_be
-
-                lane_change_action = self._policy.action_to_lane_change_map(action)
-                
-                self._vehcl._lane_change_decision = lane_change_action
-                
-                if self._vehcl._lane_change_decision != 0:
-                    self._vehcl._is_lane_changing = True
-                    self._vehcl._target_lane = self._vehcl._current_lane + lane_change_action
-                    if(self.DEBUG_LANE_CHANGE ):
-                        print("current lane:{}, decision:{}, targetLane:{}".format(self._vehcl._current_lane,
-                         self._vehcl._lane_change_decision,self._vehcl._target_lane))
+            lane_change_action = self._policy.action_to_lane_change_map(action)
+            
+            self._vehcl._lane_change_decision = lane_change_action
+            
+            if self._vehcl._lane_change_decision != 0:
+                self._vehcl._is_lane_changing = True
+                self._vehcl._target_lane = self._vehcl._current_lane + lane_change_action
+                if(self.DEBUG_LANE_CHANGE ):
+                    print("current lane:{}, decision:{}, targetLane:{}".format(self._vehcl._current_lane,
+                        self._vehcl._lane_change_decision,self._vehcl._target_lane))
 
 
                    

@@ -21,9 +21,12 @@ far 70-..
 from .models import RainbowDQN
 import torch
 import numpy as np
+import os
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+POLICY_DIR = os.path.dirname(os.path.abspath(__file__))
+#os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 class DistanceBins:
     Close = [0,11]
@@ -128,11 +131,15 @@ class Policy_Level_0(Policy):
 
 
 class Policy_Level_1(Policy_Level_0):
-    def __init__(self,model_path_to_load="level1_weights",input_shape=(13,1),n_actions=7):
+    def __init__(self,model_path_to_load=None,input_shape=(13,1),n_actions=7):
         super().__init__()
         self.net = RainbowDQN(input_shape=input_shape,n_actions=n_actions).to(device)
-        #self.net.load_state_dict(torch.load(model_path_to_load))
-        
+        if model_path_to_load:
+            full_path = POLICY_DIR +"/" +model_path_to_load
+            checkpoint = torch.load(full_path)
+            self.net.load_state_dict(checkpoint['model'])
+            self.net.eval()
+            
     def argmax_action_selector(self,scores):
         return np.argmax(scores, axis=1)
 
