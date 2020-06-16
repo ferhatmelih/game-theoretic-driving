@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import gym
-import ptan
+from ptanforpygame import ptan
+#import ptan
 import argparse
 import numpy as np
 
@@ -30,6 +31,7 @@ register(
 )
 
 
+
 experiment_name = "driving_behavior"
 sacred_ex = Experiment(experiment_name)
 now = datetime.datetime.now()
@@ -46,13 +48,17 @@ except ConnectionError :
 def dqn_cfg():
     seed = 123523
     num_lane = 3
-    level_k = 1
+
+    level_k = 2
+
     agent_level_k = level_k -1
     TRAIN = True
     LOAD_SAVED_MODEL = False
     MODEL_PATH_FINAL = "best_"+str(agent_level_k)
     SAVE_NAME = "level" + str(agent_level_k)
     RENDER = False
+    LEVEL_1_AGENT_PATH = "savedmodels/best_level_1.dat"
+    
     w1 = 0.6
     w2 = 0.3
     w3 = 0.1

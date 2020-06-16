@@ -10,7 +10,6 @@
 6 change lane to right 
 
 
-
 other agents 
 
 close. 0-30 
@@ -19,10 +18,17 @@ far 70-..
 
 """
 
+from .models import RainbowDQN
+import torch
+import numpy as np
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
 class DistanceBins:
     Close = [0,11]
     Nominal = [11,27]
-    Far = [11,300]
+    Far = [27,300]
 
 
 class DriverAction:
@@ -122,11 +128,30 @@ class Policy_Level_0(Policy):
 
 
 class Policy_Level_1(Policy_Level_0):
-    def __init__(self):
+    def __init__(self,model_path_to_load="level1_weights",input_shape=(13,1),n_actions=7):
         super().__init__()
-        pass
+        self.net = RainbowDQN(input_shape=input_shape,n_actions=n_actions).to(device)
+        #self.net.load_state_dict(torch.load(model_path_to_load))
+        
+    def argmax_action_selector(self,scores):
+        return np.argmax(scores, axis=1)
+
+    def get_action(self,observation):
+        obs_t = torch.tensor(observation).to(device)
+        obs_t = obs_t.unsqueeze(0)
+        qvals = self.net.qvals(obs_t)
+        scores_numpy = qvals.to('cpu').detach().numpy()
+        action = self.argmax_action_selector(scores_numpy)
+        return action[0]
+
 
 class Policy_Level_2(Policy_Level_0):
-    def __init__(self):
+    def __init__(self,model_path_to_load="level2_weights",input_shape=(13,1),n_actions=7):
         super().__init__()
-        pass
+        self.net = RainbowDQN(input_shape=input_shape,n_actions=n_actions).to(device)
+        #self.net.load_state_dict(torch.load(model_path_to_load))
+
+    def get_action(self,observation):
+        obs_t = torch.tensor(observation).to(device)
+        action = self.net(obs_t)  
+        return action

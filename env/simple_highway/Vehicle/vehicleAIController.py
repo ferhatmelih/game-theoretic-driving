@@ -73,7 +73,7 @@ class vehicleAIController:
 
     def make_observation_level_k(self,lane_pos_list,pos_vehicle_map):
         agent_ref = self._vehcl
-        num_lanes = self._dynamics.num_lane 
+        num_lanes = self._dynamics._num_lane 
         obs = vehicleAIController.level_k_observation(agent_ref,num_lanes,lane_pos_list,pos_vehicle_map)
 
         return obs
