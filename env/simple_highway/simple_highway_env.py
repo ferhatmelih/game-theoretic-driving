@@ -56,7 +56,7 @@ class SimpleHighway(gym.Env):
         self.size_obervation = 13
         self.seed_number = 3235
         self.should_render = True
-
+        self.level_1_agent_path = None
         self.logger = logger
 
         ## overrite some params
@@ -67,7 +67,10 @@ class SimpleHighway(gym.Env):
 
         if 'num_lane' in glob_conf:
             self.num_lane = glob_conf['num_lane']
-        
+
+        if 'level_1_agent_path' in glob_conf:
+            self.level_1_agent_path = glob_conf['level_1_agent_path']
+
         if 'seed' in glob_conf:
             self.seed_number = glob_conf['seed']
                 
@@ -115,6 +118,7 @@ class SimpleHighway(gym.Env):
         self.action_space = spaces.Discrete(self._dynamics._num_actions)
 
         self._vehicles = self.create_vehicles()
+        self.assign_controllers()
         while not self._is_ego_blocked:
             self.spawn_vehicles(self.np_random)
         
@@ -138,6 +142,16 @@ class SimpleHighway(gym.Env):
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
+
+
+    def assign_controllers(self):
+        for vehcl in self._vehicles:
+            vehcl._AIController = AIController(vehcl,
+                                               self._vehicles,
+                                               self._mode,
+                                               self._dynamics,
+                                               level_k=self.agent_level_k,
+                                               level_1_agent_path=self.level_1_agent_path)
 
     #: Creates the vehicle objects in the game.
     def create_vehicles(self):
@@ -172,7 +186,7 @@ class SimpleHighway(gym.Env):
                                     self._dynamics._desired_min_v,
                                     self._dynamics._desired_max_v,
                                     np_random)
-        self._init_vehicle_info = []
+
         for vehcl in self._vehicles:
             # if vehcl._is_ego == False:
             vehcl._current_lane = self.calculate_current_lane(vehcl._position[0], vehcl._current_lane)
@@ -181,13 +195,6 @@ class SimpleHighway(gym.Env):
             init_pos_y = vehcl._position[1]
             desired_v = vehcl._desired_v
             
-            self._init_vehicle_info.append([lane_id,init_pos_y,desired_v])
-            
-            vehcl._AIController = AIController(vehcl,
-                                               self._vehicles,
-                                               self._mode,
-                                               self._dynamics,
-                                               level_k=self.agent_level_k)
             if vehcl._is_ego == True:
                 if vehcl._AIController.find_front_vehicle(self._vehicles, vehcl._position):
                     self._is_ego_blocked = True
@@ -381,33 +388,39 @@ class SimpleHighway(gym.Env):
             vehcl._delta_v, \
             vehcl._delta_dist = vehcl.calculate_deltas(self._vehicles,
                                                        vehcl)
+
         ego_veh = self.get_vehicle_with_id(self._ego_id)
         lane_change_lock = 1
         lane_change_complete = 0
         i = 0
-        action_init = action
+        action_ego = action
 
+        # Collect the common information to save computation time
+        highway_lane_pos_list,pos_vehicle_map = self.get_common_state()
 
+        # get next action for each vehicle.
+        vehicle_action_map = {}
+        for vehcl in self._vehicles:
+            if not vehcl._is_ego:
+                agent_action = vehcl._AIController.decide_on_action(highway_lane_pos_list,pos_vehicle_map)
+                vehicle_action_map[vehcl] = agent_action
 
         while lane_change_lock and i < 30:
             i = i + 1
-
-            # All vehicles take the state of highway and create own obervation
-            # Collect the common information to save computation time
-            highway_lane_pos_list,pos_vehicle_map = self.get_common_state()
 
             # AIControlller calculates acceleration and lane change decision.
             for vehcl in self._vehicles:
                 if vehcl._is_ego is not True:
                     # get the action according to the policy 
                     # for now olny Level_0 policy exists
-                    vehcl._AIController.control(0,highway_lane_pos_list,pos_vehicle_map)
+                    chosen_action = vehicle_action_map[vehcl]
+                    vehcl._AIController.control(chosen_action)
                 else:
                     # action is needed to call lane change for EGO
                     if lane_change_complete or i > 15:
                         # this is to force to go straight after completing a lane change
                         action = 0
-                    vehcl._AIController.control(action,highway_lane_pos_list,pos_vehicle_map)
+                    vehcl._AIController.control(action)
 
                 if vehcl._is_lane_changing:
                     # Update the position and heading angle.
@@ -444,7 +457,7 @@ class SimpleHighway(gym.Env):
         highway_lane_pos_list,pos_vehicle_map = self.get_common_state()
 
         observation,ego_lead_relative = self.get_input_states(highway_lane_pos_list,pos_vehicle_map)
-        is_done,reward = self.calculate_reward(ego_veh, action_init,ego_lead_relative==ego_lead_relative)
+        is_done,reward = self.calculate_reward(ego_veh, action_ego,ego_lead_relative=ego_lead_relative)
         
         self._reward = reward
         self._reward_total = self._reward_total + self._reward
@@ -473,9 +486,9 @@ class SimpleHighway(gym.Env):
         self._ego_id = int((self._dynamics._num_veh - 1) / 2)
 
         #: list of vehicle: Stores vehicle objects
-        self._vehicles = None
+        #self._vehicles = None
 
-        self._vehicles = self.create_vehicles()
+        #self._vehicles = self.create_vehicles()
         while not self._is_ego_blocked:
             self.spawn_vehicles(self.np_random)
         
