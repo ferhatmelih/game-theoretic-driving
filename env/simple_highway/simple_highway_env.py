@@ -67,13 +67,15 @@ MEAN_VELOCITY = 25
 
 class SimpleHighway(gym.Env):
 
-    def __init__(self,agent_level_k=0,num_lane=3):
+    def __init__(self,agent_level_k=0,num_lane=3,highway_length=2e3):
         
         #>> Behavior additions
 
         self.agent_level_k = agent_level_k
         self.num_lane = num_lane 
         self.reward_coefs = np.array([0.6, 0.3, 0.1, 0.1])
+        self.size_obervation = 13
+
         #<< 
         # Seeding
         self.np_random = None
@@ -91,7 +93,7 @@ class SimpleHighway(gym.Env):
         self._steps = 0
         # The below constructors are created with default parameters,
         # to read about the parameters of a class, go to the related class.
-        self._mode = gameMode()
+        self._mode = gameMode(distance_goal=highway_length)
         self._dynamics = gameDynamics(num_actions=7,num_lane=self.num_lane)
         self._display = display(self)
 
@@ -103,11 +105,10 @@ class SimpleHighway(gym.Env):
         self._vehicles = None
         # TODO: implement more generic agent state space
         # gym action / state  / observations => pos0 pos1 vel
-        high = (10 * np.ones((self._dynamics._num_veh * 3 - 1, 1)))
+        high = (2 * np.ones((self.size_obervation, 1)))
         # self.action_space = spaces.Discrete(self._dynamics._num_veh - 1)
         self.observation_space = spaces.Box(-high, high, dtype=np.float32)
         self.action_space = spaces.Discrete(self._dynamics._num_actions)
-
 
         self._vehicles = self.create_vehicles()
         while not self._is_ego_blocked:
@@ -232,15 +233,16 @@ class SimpleHighway(gym.Env):
     def get_index_of_front_and_back(self,lane_lst,ego_pos_x):
         front_index = -1
         rear_index = -1
-        MAX_NUM = 5e9
-        diff_list = [MAX_NUM if i-ego_pos_x < 0 else i-ego_pos_x for i in lane_lst]
-        min_val = min(diff_list)
-        if min_val == MAX_NUM:
-            # no front vehicle
-            rear_index = len(lane_lst)
-        else:
-            front_index = diff_list.index(min_val)
-            rear_index = front_index - 1
+        if(len(lane_lst)>0):
+            MAX_NUM = 5e9
+            diff_list = [MAX_NUM if i-ego_pos_x < 0 else i-ego_pos_x for i in lane_lst]
+            min_val = min(diff_list)
+            if min_val == MAX_NUM:
+                # no front vehicle
+                rear_index = len(lane_lst)
+            else:
+                front_index = diff_list.index(min_val)
+                rear_index = front_index - 1
         return front_index,rear_index
 
     def get_obs_x_v(self, front_index,lane_lst,ego_pos_x,ego_speed,pos_vehicle_map):
@@ -338,49 +340,8 @@ class SimpleHighway(gym.Env):
             obs[10],obs[11] = self.get_obs_x_v(l_left_rear,ego_lane_list,ego_pos_x,ego_speed,pos_vehicle_map)   
 
         obs[12] = ego_lane
-        #print("end time is ",1e3*(time.time()-start_time))
-        # for a given vehicle, find left lane, right lane etc
 
-
-        v_ego = 0
-        s_max = 100  # GOAL_DISTANCE  # distance_long/2+ safety margin will be 50
-        # TODO find easier way to catch ego vehicle
-        ego_veh = self.get_vehicle_with_id(self._ego_id)
-        #front_id = ego_veh._AIController.find_front_vehicle(self._vehicles, ego_veh._position)
-        v_max = ego_veh._desired_v
-        v_ego = ego_veh._velocity
-        pos_ego = ego_veh._position
-        v_init = 15
-        max_delta_v = 14
-        v_min = 12
-
-        a_max = 5
-        # normalized ego_speed
-        input_vector = np.array([(v_ego - v_min) / (v_max - v_init)], dtype="f")
-        # normalized acceleration
-        #input_vector = np.append(input_vector, ego_veh._acceleration / a_max)
-        # normalized lateral position
-        input_vector = np.append(input_vector, pos_ego[0] / (self._dynamics._num_lane -1))
-        #input_vector = np.append(input_vector, ego_veh._acceleration/1)
-
-        for vehcl in self._vehicles: #reversed makes states upside down, this makes the performance worse!
-            if vehcl._id != self._ego_id:
-                if abs(vehcl._position[1]) - pos_ego[1] < 100:
-                    input_vector = np.append(input_vector, (-vehcl._position[1] + pos_ego[1]) / s_max)
-                    input_vector = np.append(input_vector, (-vehcl._position[0] + pos_ego[0]) / (self._dynamics._num_lane - 1))
-                    input_vector = np.append(input_vector, (-vehcl._velocity + ego_veh._velocity ) / max_delta_v)
-                    #input_vector = np.append(input_vector, (vehcl._current_lane - ego_veh._current_lane) / 2)
-                    #input_vector = np.append(input_vector, (-vehcl._acceleration + ego_veh._acceleration))
-                else:
-                    # TODO: asses giving 0 to the distant vehicles help at all?
-                    input_vector = np.append(input_vector, [-1.0, 0.0, 0.0])
-
-
-        input_vector = input_vector.reshape((len(input_vector), 1))
-        if(not self.is_init_state_saved):
-            self._init_input_state = input_vector
-            self.is_init_state_saved = True
-        return input_vector
+        return obs
 
     # PyGame related function.
     def terminate(self):
@@ -484,6 +445,7 @@ class SimpleHighway(gym.Env):
         dist_reward = 0
         e_comf_reward = 0 
         if self.check_ego_accidents(ego_veh) == 1:
+            self._num_hard_crash = self._num_hard_crash + 1
             collision_reward = -1
             is_done = True
 
@@ -500,52 +462,20 @@ class SimpleHighway(gym.Env):
         final_reward = np.dot(self.reward_coefs,
             np.array([collision_reward, speed_reward, dist_reward, e_comf_reward]))
 
-        is_done = False
         out_of_bounds = 0
         # if there are 3 lanes, beyond 2.01, if there are 2 lanes, beyond 1.01 is out of bounds.
         lane_departure = self._dynamics._num_lane - 1 + 0.01
         if ego_veh._position[0] > lane_departure or ego_veh._position[0] < 0.0:
             out_of_bounds = 1
-            self._reward = self._reward - 100.0
             self._num_wrong_exit = self._num_wrong_exit + 1
             is_done = True
-        if action != 0:
-            # punish each turn
-            self._reward = self._reward - 1
-        else:
-            self._reward = self._reward - 0.2
-            foo = 0
-            # hard crash punishment
-        self._did_accident_just_occur = False
-        if self.check_ego_accidents(ego_veh) == 1:
-            self._reward = self._reward - 100.0
-            self._num_hard_crash = self._num_hard_crash + 1
-            is_done = True
-            self._did_accident_just_occur = True
-            # soft crash punishment
-        elif self.check_ego_accidents(ego_veh) == 2:
-            self._reward = self._reward - 10.0
-            self._num_soft_crash = self._num_soft_crash + 1
-        elif not out_of_bounds:
-            # Speed Factor - encourage to go faster
-            speed_error = ego_veh._desired_v - ego_veh._velocity
-            # try to give more pos rewards
-            speed_rew = ((ego_veh._velocity  - 15) / (ego_veh._desired_v - 15))
-            accel_rew = 0
-            #speed_rew = 0
-            if abs(ego_veh._acceleration) < 0.005:
-                accel_rew = -speed_rew
 
-            # acceleration factor - avoid to settling intermediate speeds
-            K_accel = 4 # KP like accel error, settling to the other vehicle speed suffers -0.1
-            #accel_rew = ego_veh._acceleration * K_accel
-            # cancel accel_rew
-            #accel_rew = 0
-            if speed_error < 1 and not out_of_bounds:
-                speed_rew = 100
-                is_done = 1
-            self._reward = self._reward + speed_rew + accel_rew
-        return is_done
+        if ego_veh._position[1] >= self._mode._distance_goal:
+            is_done = True
+
+        self._reward = final_reward
+
+        return is_done,final_reward
 
 
     def gym_to_lanechange_action(self,action):
@@ -553,9 +483,6 @@ class SimpleHighway(gym.Env):
         return action
 
     def step(self, action):
-        
-        action = self.gym_to_lanechange_action(action)
-
         # find fron vehicles then calculate delta x, v ,a
         for vehcl in self._vehicles:
             vehcl._delta_v, \
@@ -612,12 +539,11 @@ class SimpleHighway(gym.Env):
             if not ego_veh._is_lane_changing and i >= 30:
                 lane_change_lock = 0
 
-        is_done = self.calculate_reward(ego_veh, action_init)
+        is_done,reward = self.calculate_reward(ego_veh, action_init)
         observation = self.get_input_states()
+        self._reward = reward
         self._reward_total = self._reward_total + self._reward
 
-        if ego_veh._position[1] >= self._mode._distance_goal:
-            is_done = True
         self._steps = self._steps + 1
         summary = {"total_hard_accidents": self._num_hard_crash, "total_soft_accidents": self._num_soft_crash,
                    "total_wrong_exits": self._num_wrong_exit,"init_vehicle_info":self._init_vehicle_info,
