@@ -18,7 +18,7 @@ class vehicleAIController:
         
         self._id = self._vehcl._id
         
-        if(level_k==0):
+        if level_k==0 :
             self._policy = Policy_Level_0()
         elif level_k == 1:
             self._policy = Policy_Level_1()
