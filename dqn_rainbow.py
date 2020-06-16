@@ -30,7 +30,6 @@ register(
 )
 
 
-
 experiment_name = "driving_behavior"
 sacred_ex = Experiment(experiment_name)
 now = datetime.datetime.now()
@@ -53,7 +52,7 @@ def dqn_cfg():
     LOAD_SAVED_MODEL = False
     MODEL_PATH_FINAL = "best_"+str(agent_level_k)
     SAVE_NAME = "level" + str(agent_level_k)
-    RENDER = True
+    RENDER = False
     w1 = 0.6
     w2 = 0.3
     w3 = 0.1

@@ -1,3 +1,5 @@
+from lib import common
+
 def load_ckp(checkpoint_fpath, model, optimizer):
     """
     checkpoint_path: path to save checkpoint
