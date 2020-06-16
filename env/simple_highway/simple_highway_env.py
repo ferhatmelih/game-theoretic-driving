@@ -38,28 +38,6 @@ import datetime
 5 change lane to left
 6 change lane to right 
 
-
-if self.is_index_valid(l_front,):
-    agent_pos_x = lane_pos_list[l_front]
-    rel_pos = agent_pos_x - ego_pos_x
-    obs[0] = self.relative_pos_to_bin(rel_pos)
-
-    agent_ref = pos_vehicle_map[agent_pos_x]
-    agent_speed = agent_ref._velocity
-    rel_vel = agent_speed - ego_speed
-    obs[1] = self.relative_vel_to_bin(rel_vel)
-
-if self.is_index_valid(l_rear,lane_pos_list[ego_lane]):
-    agent_pos_x = lane_pos_list[l_rear]
-    rel_pos = agent_pos_x - ego_pos_x
-    obs[2] = self.relative_pos_to_bin(rel_pos)
-
-    agent_ref = pos_vehicle_map[agent_pos_x]
-    agent_speed = agent_ref._velocity
-    rel_vel = agent_speed - ego_speed
-    obs[3] = self.relative_vel_to_bin(rel_vel)
-
-
 """
 MAX_VELOCITY = 40 #m/s
 MIN_VELOCITY = 10 #m/s
@@ -67,21 +45,43 @@ MEAN_VELOCITY = 25
 
 class SimpleHighway(gym.Env):
 
-    def __init__(self,agent_level_k=0,num_lane=3,highway_length=2e3):
+    def __init__(self,agent_level_k=0,num_lane=3,highway_length=2e3,glob_conf={},logger=None):
         
         #>> Behavior additions
-
         self.agent_level_k = agent_level_k
         self.num_lane = num_lane 
         self.reward_coefs = np.array([0.6, 0.3, 0.1, 0.1])
         self.size_obervation = 13
+        self.seed_number = 3235
 
+        self.logger = logger
+
+        ## overrite some params
+        if 'agent_level_k' in glob_conf:
+            self.agent_level_k = glob_conf['agent_level_k']
+
+        if 'num_lane' in glob_conf:
+            self.num_lane = glob_conf['num_lane']
+        
+        if 'seed' in glob_conf:
+            self.seed_number = glob_conf['seed']
+                
+        if 'w1' in glob_conf:
+            self.reward_coefs[0] = glob_conf['w1']
+        if 'w2' in glob_conf:
+            self.reward_coefs[1] = glob_conf['w2']
+        if 'w3' in glob_conf:
+            self.reward_coefs[2] = glob_conf['w3']
+        if 'w4' in glob_conf:
+            self.reward_coefs[3] = glob_conf['w4']
+
+        self._num_episodes = 0
         #<< 
         # Seeding
         self.np_random = None
         
-        #np.random.seed(456481)
-        self.seed(56555)
+        self.seed(self.seed_number)
+
         #: int: Time of the simulation (s)
         self._time = 0
         #: float: Analog of the real time required to do just one step (s)
@@ -103,8 +103,7 @@ class SimpleHighway(gym.Env):
         self._is_ego_blocked = False
         #: list of vehicle: Stores vehicle objects
         self._vehicles = None
-        # TODO: implement more generic agent state space
-        # gym action / state  / observations => pos0 pos1 vel
+
         high = (2 * np.ones((self.size_obervation, 1)))
         # self.action_space = spaces.Discrete(self._dynamics._num_veh - 1)
         self.observation_space = spaces.Box(-high, high, dtype=np.float32)
@@ -545,6 +544,12 @@ class SimpleHighway(gym.Env):
         self._reward_total = self._reward_total + self._reward
 
         self._steps = self._steps + 1
+        if(self.logger):
+            self.logger.log_scalar("total_hard_accidents", self._num_hard_crash)
+            self.logger.log_scalar("reward_total", self._reward_total)
+            self.logger.log_scalar("reward", self._reward)
+            
+
         summary = {"total_hard_accidents": self._num_hard_crash, "total_soft_accidents": self._num_soft_crash,
                    "total_wrong_exits": self._num_wrong_exit,"init_vehicle_info":self._init_vehicle_info,
                    "init_input_state":self._init_input_state,"num_steps_taken":self._steps}
@@ -552,7 +557,7 @@ class SimpleHighway(gym.Env):
 
     def reset(self):
         self._is_ego_blocked = 0
-        
+        self._num_episodes +=1
         self._time = 0
         self._reward_total = 0
         #: float: Analog of the real time required to do just one step (s)
@@ -578,6 +583,10 @@ class SimpleHighway(gym.Env):
         
         obs, _, _, _ = self.step(1)
         self.is_init_state_saved = False
-        self.num_steps_taken = 0
         
+        if(self.logger):
+            self.logger.log_scalar("episode_num", self._num_episodes)
+            self.logger.log_scalar("num_steps_taken", self.num_steps_taken)
+
+        self.num_steps_taken = 0
         return obs
