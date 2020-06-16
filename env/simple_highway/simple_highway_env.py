@@ -53,12 +53,15 @@ class SimpleHighway(gym.Env):
         self.reward_coefs = np.array([0.6, 0.3, 0.1, 0.1])
         self.size_obervation = 13
         self.seed_number = 3235
+        self.should_render = True
 
         self.logger = logger
 
         ## overrite some params
         if 'agent_level_k' in glob_conf:
             self.agent_level_k = glob_conf['agent_level_k']
+        if 'RENDER' in glob_conf:
+            self.should_render = glob_conf['RENDER']
 
         if 'num_lane' in glob_conf:
             self.num_lane = glob_conf['num_lane']
@@ -93,7 +96,7 @@ class SimpleHighway(gym.Env):
         self._steps = 0
         # The below constructors are created with default parameters,
         # to read about the parameters of a class, go to the related class.
-        self._mode = gameMode(distance_goal=highway_length)
+        self._mode = gameMode(distance_goal=highway_length,is_rendering=self.should_render)
         self._dynamics = gameDynamics(num_actions=7,num_lane=self.num_lane)
         self._display = display(self)
 
@@ -448,11 +451,21 @@ class SimpleHighway(gym.Env):
             collision_reward = -1
             is_done = True
 
+        # if there are 3 lanes, beyond 2.01, if there are 2 lanes, beyond 1.01 is out of bounds.
+        lane_departure = self._dynamics._num_lane - 1 + 0.01
+        if ego_veh._position[0] > lane_departure or ego_veh._position[0] < 0.0:
+            collision_reward = -1
+            self._num_wrong_exit = self._num_wrong_exit + 1
+            is_done = True
+
+        if ego_veh._position[1] >= self._mode._distance_goal:
+            is_done = True
+
         ego_speed = ego_veh._velocity 
 
         speed_reward = (ego_speed - MEAN_VELOCITY)/MAX_VELOCITY
 
-        lead_position_rel = 10
+        lead_position_rel = 30
 
         dist_reward = self.lead_distance_to_reward(lead_position_rel)
 
@@ -461,16 +474,6 @@ class SimpleHighway(gym.Env):
         final_reward = np.dot(self.reward_coefs,
             np.array([collision_reward, speed_reward, dist_reward, e_comf_reward]))
 
-        out_of_bounds = 0
-        # if there are 3 lanes, beyond 2.01, if there are 2 lanes, beyond 1.01 is out of bounds.
-        lane_departure = self._dynamics._num_lane - 1 + 0.01
-        if ego_veh._position[0] > lane_departure or ego_veh._position[0] < 0.0:
-            out_of_bounds = 1
-            self._num_wrong_exit = self._num_wrong_exit + 1
-            is_done = True
-
-        if ego_veh._position[1] >= self._mode._distance_goal:
-            is_done = True
 
         self._reward = final_reward
 

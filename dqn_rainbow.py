@@ -55,8 +55,9 @@ def dqn_cfg():
     agent_level_k = level_k -1
     TRAIN = True
     LOAD_SAVED_MODEL = False
-    MODEL_PATH_FINAL = ""
+    MODEL_PATH_FINAL = "best_"+str(agent_level_k)
     SAVE_NAME = "level" + str(agent_level_k)
+    RENDER = False
     w1 = 0.6
     w2 = 0.3
     w3 = 0.1
@@ -92,6 +93,27 @@ def calc_values_of_states(states, net, device="cpu"):
         mean_vals.append(best_action_values_v.mean().item())
     return np.mean(mean_vals)
    
+
+
+def load_ckp(checkpoint_fpath, model, optimizer):
+    """
+    checkpoint_path: path to save checkpoint
+    model: model that we want to load checkpoint parameters into
+    optimizer: optimizer we defined in previous training
+    """
+    # load check point
+    checkpoint = torch.load(checkpoint_fpath)
+    # initialize state_dict from checkpoint to model
+    model.load_state_dict(checkpoint['model'])
+    # initialize optimizer from checkpoint to optimizer
+    optimizer.load_state_dict(checkpoint['optimizer'])
+    # initialize valid_loss_min from checkpoint to valid_loss_min
+    valid_loss_min = checkpoint['loss']
+    # return model, optimizer, epoch value, min validation loss
+    print("model = ", model)
+    print("optimizer = ", optimizer)
+    return model, optimizer, valid_loss_min.item()
+
 
 def calc_loss(batch, batch_weights, net, tgt_net, gamma, device="cpu"):
     states, actions, rewards, dones, next_states = common.unpack_batch(batch)
@@ -198,10 +220,16 @@ def main(_config,_run):
     env = gym.make(params['env_name'],glob_conf=_config,logger=logger)
     #env = ptan.common.wrappers.wrap_dqn(env)
 
-    writer = SummaryWriter(comment="-" + params['run_name'] + "-rainbow-beta200-2LaneStateBenchWoutAccel_sparsePlusSpeed")
+    writer = SummaryWriter(comment="-" + params['run_name'] + "-rainbow-beta200")
     net = RainbowDQN(env.observation_space.shape, env.action_space.n).to(device)
+    
+    #net.load_state_dict(torch.load(  ))
+    name_load = current_path +"/models" +MODEL_PATH_FINAL
     if _config['LOAD_SAVED_MODEL']:
-        net.load_state_dict(torch.load(  ))
+        mdl, opt, lss = load_ckp(MODEL_PATH_FINAL, net, optimizer)
+        net = mdl
+        optimizer = opt
+
     tgt_net = ptan.agent.TargetNet(net)
     agent = ptan.agent.DQNAgent(lambda x: net.qvals(x), ptan.actions.ArgmaxActionSelector(), device=device)
     # change the step_counts to change multi step prediction
@@ -257,7 +285,7 @@ def main(_config,_run):
                                                params['gamma'] ** REWARD_STEPS, device=device)
 
             # if frame_idx % 10000 == 0:
-            if frame_idx % 100000 == 0:
+            if frame_idx % 5000 == 0:
                 checkpoint = ({
                     'model': net.state_dict(),
                     'optimizer': optimizer.state_dict(),
