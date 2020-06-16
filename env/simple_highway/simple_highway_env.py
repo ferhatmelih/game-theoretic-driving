@@ -17,7 +17,7 @@ from .Vehicle.vehicle import vehicle
 from .Display.display import display
 # AI controller 
 from .Vehicle.vehicleAIController import vehicleAIController as AIController
-
+# types
 from .Vehicle.policy import DriverAction,DistanceBins
 
 import numpy as np
@@ -42,6 +42,8 @@ import datetime
 MAX_VELOCITY = 40 #m/s
 MIN_VELOCITY = 10 #m/s
 MEAN_VELOCITY = 25 
+
+FAR_AWAY = 200 # meters
 
 class SimpleHighway(gym.Env):
 
@@ -292,8 +294,7 @@ class SimpleHighway(gym.Env):
         Observation length  = 2*3*2 + 1 = 13
         
         """ 
-        #lane_pos_array = np.empty([self.num_lane, 1], dtype=float)
-        #start_time = time.time()
+
 
         lane_pos_list = []
         pos_vehicle_map = {}
@@ -322,8 +323,8 @@ class SimpleHighway(gym.Env):
         ego_pos_x = ego_vehicle._position[1]
         ego_speed = ego_vehicle._velocity # the name _velocity should have been speed
         index_in_lane = lane_pos_list[ego_lane].index(ego_pos_x)
-        l_front = index_in_lane -1
-        l_rear = index_in_lane + 1
+        l_front = index_in_lane  + 1
+        l_rear = index_in_lane - 1
         ego_lane_list = lane_pos_list[ego_lane]
 
         obs[0],obs[1] = self.get_obs_x_v(l_front,ego_lane_list,ego_pos_x,ego_speed,pos_vehicle_map)
@@ -343,7 +344,12 @@ class SimpleHighway(gym.Env):
 
         obs[12] = ego_lane
 
-        return obs
+        ego_lead_relative = FAR_AWAY
+        if self.is_index_valid(l_front,ego_lane_list):
+            lead_pos_x = ego_lane_list[l_front] 
+            ego_lead_relative = lead_pos_x - ego_pos_x
+        
+        return obs,ego_lead_relative
 
     # PyGame related function.
     def terminate(self):
@@ -427,8 +433,9 @@ class SimpleHighway(gym.Env):
             out = 0
         
         return out
+    
 
-    def calculate_reward(self, ego_veh, action):
+    def calculate_reward(self, ego_veh, action,ego_lead_relative=200):
         """
         w1 = 0.6, w2 = 0.3, and w3 = 0.1 etc
 
@@ -465,9 +472,7 @@ class SimpleHighway(gym.Env):
 
         speed_reward = (ego_speed - MEAN_VELOCITY)/MAX_VELOCITY
 
-        lead_position_rel = 30
-
-        dist_reward = self.lead_distance_to_reward(lead_position_rel)
+        dist_reward = self.lead_distance_to_reward(ego_lead_relative)
 
         e_comf_reward = self.calc_comfort_reard(action)
 
@@ -479,10 +484,6 @@ class SimpleHighway(gym.Env):
 
         return is_done,final_reward
 
-
-    def gym_to_lanechange_action(self,action):
-        action = action - 1
-        return action
 
     def step(self, action):
         # find fron vehicles then calculate delta x, v ,a
@@ -541,8 +542,9 @@ class SimpleHighway(gym.Env):
             if not ego_veh._is_lane_changing and i >= 30:
                 lane_change_lock = 0
 
-        is_done,reward = self.calculate_reward(ego_veh, action_init)
-        observation = self.get_input_states()
+        observation,ego_lead_relative = self.get_input_states()
+        is_done,reward = self.calculate_reward(ego_veh, action_init,ego_lead_relative==ego_lead_relative)
+        
         self._reward = reward
         self._reward_total = self._reward_total + self._reward
 
