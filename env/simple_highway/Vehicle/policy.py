@@ -19,6 +19,22 @@ far 70-..
 
 """
 
+class DistanceBins:
+    Close = [0,11]
+    Nominal = [11,27]
+    Far = [11,300]
+
+
+class DriverAction:
+    Maintain = 0
+    SmallAcc = 1 # 2.5m/s2
+    SmallDec = 2
+    HardAcc = 3 # 5.0m/s2
+    HardDec = 4 
+    ToLeftLane = 5
+    ToRightLane = 6
+
+
 
 class Policy(object):
     def __init__(self):

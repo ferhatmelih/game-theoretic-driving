@@ -18,6 +18,8 @@ from .Display.display import display
 # AI controller 
 from .Vehicle.vehicleAIController import vehicleAIController as AIController
 
+from .Vehicle.policy import DriverAction,DistanceBins
+
 import numpy as np
 import pygame, pdb
 from pygame.locals import *
@@ -61,6 +63,7 @@ if self.is_index_valid(l_rear,lane_pos_list[ego_lane]):
 """
 MAX_VELOCITY = 40 #m/s
 MIN_VELOCITY = 10 #m/s
+MEAN_VELOCITY = 25 
 
 class SimpleHighway(gym.Env):
 
@@ -70,7 +73,7 @@ class SimpleHighway(gym.Env):
 
         self.agent_level_k = agent_level_k
         self.num_lane = num_lane 
-
+        self.reward_coefs = np.array([0.6, 0.3, 0.1, 0.1])
         #<< 
         # Seeding
         self.np_random = None
@@ -194,10 +197,29 @@ class SimpleHighway(gym.Env):
         return self._vehicles[vehcl_id]
 
     def relative_pos_to_bin(self,rel_pos):
-        return 0.2
+        out = 1.0
+        if abs(rel_pos) > 27:
+            out = 1.0 # far
+        elif abs(rel_pos) > 11:
+            out = 0.6 # nomina;
+        elif abs(rel_pos) >=0.0:
+            out = 0.2 #near
+        if(rel_pos==0): rel_pos = 0.0001
+        sign = rel_pos/abs(rel_pos)
+        out = sign*out
+        return out
 
     def relative_vel_to_bin(self,rel_v):
-        return 0.2
+        out = 0.0
+        if abs(rel_v) > 0.36:
+            out = 1.0 # approach or move away
+        elif abs(rel_v) >= 0.0:
+            out = 0.0 # stable;
+        
+        if rel_v == 0.0: rel_v = 0.00001
+        sign = rel_v/abs(rel_v)
+        out = sign*out
+        return out
 
     def is_index_valid(self,in_index,in_list):
         if(in_index<0):
@@ -415,7 +437,69 @@ class SimpleHighway(gym.Env):
 
         return current_lane
 
+    def lead_distance_to_reward(self,rel_lead_dist):
+        close_max = DistanceBins.Close[1]
+        nominal_max = DistanceBins.Nominal[1]
+        out = 1
+        if abs(rel_lead_dist) < close_max:
+            out = -1
+        elif abs(rel_lead_dist) < nominal_max:
+            out = 0
+        else:
+            out = 1
+        return out
+
+
+    def calc_comfort_reard(self,action):
+        out = 0
+        if action == DriverAction.Maintain:
+            out = 0
+        elif action == DriverAction.SmallAcc or action == DriverAction.SmallDec:
+            out = -0.25
+        elif action == DriverAction.HardAcc or action == DriverAction.HardAcc:
+            out = -0.50
+        elif action == DriverAction.ToLeftLane or action == DriverAction.ToRightLane:
+            out = -1
+        else:
+            out = 0
+        
+        return out
+
     def calculate_reward(self, ego_veh, action):
+        """
+        w1 = 0.6, w2 = 0.3, and w3 = 0.1 etc
+
+        R = c + s + d + e
+
+        c  if crash -1 
+        s   (ego_speed - MEAN)/MAX
+        d  if lead car is close:-1 nominal:0 else:1
+        e  if action is maintain:0 Acc:-0.25 HardAcc:-0.5
+            left:-1 right:-1
+
+        """
+        is_done = False
+
+        collision_reward = 0
+        dist_reward = 0
+        e_comf_reward = 0 
+        if self.check_ego_accidents(ego_veh) == 1:
+            collision_reward = -1
+            is_done = True
+
+        ego_speed = ego_veh._velocity 
+
+        speed_reward = (ego_speed - MEAN_VELOCITY)/MAX_VELOCITY
+
+        lead_position_rel = 10
+
+        dist_reward = self.lead_distance_to_reward(lead_position_rel)
+
+        e_comf_reward = self.calc_comfort_reard(action)
+
+        final_reward = np.dot(self.reward_coefs,
+            np.array([collision_reward, speed_reward, dist_reward, e_comf_reward]))
+
         is_done = False
         out_of_bounds = 0
         # if there are 3 lanes, beyond 2.01, if there are 2 lanes, beyond 1.01 is out of bounds.
