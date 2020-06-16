@@ -567,10 +567,6 @@ class SimpleHighway(gym.Env):
         self._reward_total = 0
         #: float: Analog of the real time required to do just one step (s)
         self._dt = 0.05
-        
-        self._mode = gameMode()
-        self._dynamics = gameDynamics(num_actions=7,num_lane=self.num_lane)
-        self._display = display(self)
 
         #: int: Id of the ego vehicle, it is always at the median index.
         self._ego_id = int((self._dynamics._num_veh - 1) / 2)
@@ -582,9 +578,6 @@ class SimpleHighway(gym.Env):
         while not self._is_ego_blocked:
             self.spawn_vehicles(self.np_random)
         
-        #: Starts the visual game environment.
-        if self._mode._is_rendering:
-            self._display.env_init(self._reward_total)
         
         obs, _, _, _ = self.step(1)
         self.is_init_state_saved = False
